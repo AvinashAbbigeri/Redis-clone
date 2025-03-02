@@ -31,12 +31,23 @@ func parseCommand(raw string) (Command, error) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Read %s\n", v.Type())
+
 		if v.Type() == resp.Array {
-			for i, v := range v.Array() {
-				fmt.Printf("#%d %s, value: '%s'\n", i, v.Type(), v)
+			for _, value := range v.Array() {
+				switch value.String() {
+				case CommandSET:
+					fmt.Println(len(v.Array()))
+					if len(v.Array()) != 3 {
+						return nil, fmt.Errorf("invalid number of variables for SET command")
+					}
+					cmd := SetCommand{
+						key: v.Array()[1].String(),
+						val: v.Array()[2].String(),
+					}
+					return cmd, nil
+				}
 			}
 		}
 	}
-	return "foo", nil
+	return fmt.Errorf("invalid or unknown command recived: %s", raw), nil
 }
