@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	CommandSET = "SET"
+	commandSET = "SET"
 )
 
 type Command interface {
@@ -35,8 +35,7 @@ func parseCommand(raw string) (Command, error) {
 		if v.Type() == resp.Array {
 			for _, value := range v.Array() {
 				switch value.String() {
-				case CommandSET:
-					fmt.Println(len(v.Array()))
+				case commandSET:
 					if len(v.Array()) != 3 {
 						return nil, fmt.Errorf("invalid number of variables for SET command")
 					}
@@ -48,6 +47,7 @@ func parseCommand(raw string) (Command, error) {
 				}
 			}
 		}
+		return nil, fmt.Errorf("invalid or unknown command received: %s", raw)
 	}
-	return fmt.Errorf("invalid or unknown command recived: %s", raw), nil
+	return nil, fmt.Errorf("invalid or unknown command received: %s", raw)
 }

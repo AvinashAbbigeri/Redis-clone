@@ -55,7 +55,7 @@ func (s *Server) handleRawMessage(rawMsg []byte) error {
 	}
 	switch v := cmd.(type) {
 	case SetCommand:
-		slog.Info("somebody wants to set key in to the hash table", "key", v.key, "value", v.val)
+		slog.Info("somebody wants to set a key in to the hash table", "key", v.key, "value", v.val)
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (s *Server) loop() {
 		select {
 		case rawMsg := <-s.msgCh:
 			if err := s.handleRawMessage(rawMsg); err != nil {
-				slog.Error("raw message error", "err", err)
+				slog.Info("raw message error", "err", err)
 			}
 		case <-s.quitCh:
 			return
