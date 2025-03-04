@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"io"
 	"net"
 
 	"github.com/tidwall/resp"
@@ -13,7 +14,7 @@ type client struct {
 }
 
 func New(addr string) *client {
-	return &client{}
+	return &client{addr: addr}
 }
 
 func (c *client) Set(ctx context.Context, key string, val string) error {
@@ -21,13 +22,13 @@ func (c *client) Set(ctx context.Context, key string, val string) error {
 	if err != nil {
 		return err
 	}
-	var buf bytes.Buffer
-	wr := resp.NewWriter(&buf)
+	buf := &bytes.Buffer{}
+	wr := resp.NewWriter(buf)
 	wr.WriteArray([]resp.Value{
 		resp.StringValue("SET"),
 		resp.StringValue(key),
 		resp.StringValue(val),
 	})
-	_, err = conn.Write(buf.Bytes())
+	_, err = io.Copy(conn, buf)
 	return err
 }
