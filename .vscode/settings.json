@@ -1,0 +1,9 @@
+{
+    "files.autoSave": "afterDelay",
+    "editor.cursorStyle": "block",
+    "editor.minimap.enabled": false,
+    "editor.minimap.renderCharacters": true,
+    "editor.minimap.showMarkSectionHeaders": true,
+    "diffEditor.diffAlgorithm": "advanced",
+    "editor.lineNumbers": "off"
+}
