@@ -1,6 +1,6 @@
 package main
 
-// 2:57:57
+// 3:10:44
 import (
 	"flag"
 	"fmt"
@@ -86,6 +86,7 @@ func (s *Server) loop() {
 		case <-s.quitCh:
 			return
 		case peer := <-s.addPeerCh:
+			slog.Info("new peer connected", "remoteaddr", peer.conn.RemoteAddr())
 			s.peers[peer] = true
 		}
 	}

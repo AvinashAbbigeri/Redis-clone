@@ -4,24 +4,37 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestNewClient1(t *testing.T) {
+func TestServerWithMultiClients(t *testing.T) {
+	nClients := 10
+	wg := sync.WaitGroup{}
+	wg.Add(nClients)
+	for i := 0; i < nClients; i++ {
+		go func(it int) {
 
-	c, err := New("localhost:5001")
-	if err != nil {
-		log.Fatal(err)
+			c, err := New("localhost:5001")
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer c.Close()
+			key := fmt.Sprintf("foo_client_%d", i)
+			value := fmt.Sprintf("bar_client_%d", i)
+			if err := c.Set(context.TODO(), key, value); err != nil {
+				log.Fatal(err)
+			}
+			val, err := c.Get(context.TODO(), key)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("client %d go this val back =>%s\n", it, val)
+			wg.Done()
+		}(i)
 	}
-	if err := c.Set(context.TODO(), "foo", "1"); err != nil {
-		log.Fatal(err)
-	}
-	val, err := c.Get(context.TODO(), "foo")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Print(val)
+	wg.Wait()
 }
 
 func TestNewClient(t *testing.T) {
