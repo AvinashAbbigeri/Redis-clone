@@ -1,5 +1,5 @@
 run: build
-	@./bin/Redis
+	@./bin/Redis -listenaddr :5001
 
 build:
-	@go build -o bin/Redis -buildvcs=false
+	@go build -o bin/Redis .
