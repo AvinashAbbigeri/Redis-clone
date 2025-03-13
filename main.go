@@ -12,10 +12,12 @@ import (
 
 const defaultListenAddr = ":5001"
 
+// Holds the server listening address.
 type Config struct {
 	ListenAddr string
 }
 
+// Encapsulates the client command and the connection.
 type Message struct {
 	cmd  Command
 	peer *Peer
@@ -23,16 +25,19 @@ type Message struct {
 
 type Server struct {
 	Config
-	peers     map[*Peer]bool
-	ln        net.Listener
-	addPeerCh chan *Peer
-	delPeerCh chan *Peer
-	quitCh    chan struct{}
-	msgCh     chan Message
+	peers     map[*Peer]bool // Tracks connected clients.
+	ln        net.Listener   // TCP listener.
+	addPeerCh chan *Peer     // Channel for adding new clients.
+	delPeerCh chan *Peer     // Channel for removing new clients.
+	quitCh    chan struct{}  // Channel for server shutdown.
+	msgCh     chan Message   // Channel for processing commands.
 
-	kv *KV
+	kv *KV // Key-Value store.
 }
 
+// Creating new server.
+// Initialize the server with default values and
+// create an instance of KV.
 func NewServer(cfg Config) *Server {
 	if len(cfg.ListenAddr) == 0 {
 		cfg.ListenAddr = defaultListenAddr
@@ -48,7 +53,9 @@ func NewServer(cfg Config) *Server {
 	}
 }
 
-// testing this comment out
+// Start the TCP listener.
+// Runs the loop() as a go routine to handle events.
+// acceptLoop() to listen for incomming commands.
 func (s *Server) Start() error {
 	ln, err := net.Listen("tcp", s.ListenAddr)
 	if err != nil {
@@ -63,6 +70,10 @@ func (s *Server) Start() error {
 	return s.acceptLoop()
 }
 
+// Handles the client commands.
+// SET stores the key-value pair.
+// GET retrieve the key-value pair.
+// HELLO return a basic server response.
 func (s *Server) handleMessage(msg Message) error {
 	switch v := msg.cmd.(type) {
 	case ClientCommand:
@@ -102,6 +113,9 @@ func (s *Server) handleMessage(msg Message) error {
 	return nil
 }
 
+// The event loop.
+// Handles the peer connections and disconnections.
+// Uses select statement to hsndle multiple connections.
 func (s *Server) loop() {
 	for {
 		select {
@@ -121,6 +135,8 @@ func (s *Server) loop() {
 	}
 }
 
+// Accepts new connections and
+// launches a new go routine for each connection made.
 func (s *Server) acceptLoop() error {
 	for {
 		conn, err := s.ln.Accept()
@@ -132,6 +148,9 @@ func (s *Server) acceptLoop() error {
 	}
 }
 
+// Handles the client connection.
+// Creates a peer instance and
+// reads continuosly to process client messages.
 func (s *Server) handleConn(conn net.Conn) {
 	peer := NewPeer(conn, s.msgCh, s.delPeerCh)
 	s.addPeerCh <- peer
@@ -140,6 +159,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	}
 }
 
+// Reads the listenAddr flag to create new server instance and logs if crashes.
 func main() {
 	listenAddr := flag.String("listenAddr", defaultListenAddr, "listen address of the goredis server")
 	flag.Parse()

@@ -4,11 +4,27 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+func waitForServer(addr string, timeout time.Duration) error {
+	start := time.Now()
+	for {
+		conn, err := net.Dial("tcp", addr)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		if time.Since(start) > timeout {
+			return fmt.Errorf("server did not start within %s", timeout)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
 
 func TestOfficialRedisClient(t *testing.T) {
 	listenAddr := ":5001"
@@ -18,14 +34,18 @@ func TestOfficialRedisClient(t *testing.T) {
 	go func() {
 		log.Fatal(server.Start())
 	}()
-	time.Sleep(time.Millisecond * 400)
+	if err := waitForServer(listenAddr, 5*time.Second); err != nil {
+		t.Fatal(err)
+	}
 
+	// Redis client creation.
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("localhost%s", ":5001"),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
 
+	// Test key-value operations.
 	testCases := map[string]string{
 		"foo":  "bar",
 		"a":    "gg",
