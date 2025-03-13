@@ -1,12 +1,13 @@
 package main
 
-// 3:10:44
 import (
 	"flag"
 	"fmt"
 	"log"
 	"log/slog"
 	"net"
+
+	"github.com/tidwall/resp"
 )
 
 const defaultListenAddr = ":5001"
@@ -25,6 +26,7 @@ type Server struct {
 	peers     map[*Peer]bool
 	ln        net.Listener
 	addPeerCh chan *Peer
+	delPeerCh chan *Peer
 	quitCh    chan struct{}
 	msgCh     chan Message
 
@@ -39,12 +41,14 @@ func NewServer(cfg Config) *Server {
 		Config:    cfg,
 		peers:     make(map[*Peer]bool),
 		addPeerCh: make(chan *Peer),
+		delPeerCh: make(chan *Peer),
 		quitCh:    make(chan struct{}),
 		msgCh:     make(chan Message),
 		kv:        NewKV(),
 	}
 }
 
+// testing this comment out
 func (s *Server) Start() error {
 	ln, err := net.Listen("tcp", s.ListenAddr)
 	if err != nil {
@@ -54,23 +58,45 @@ func (s *Server) Start() error {
 
 	go s.loop()
 
-	slog.Info("goredis server is Running", "listenAddr", s.ListenAddr)
+	slog.Info("goredis server running", "listenAddr", s.ListenAddr)
 
 	return s.acceptLoop()
 }
 
 func (s *Server) handleMessage(msg Message) error {
 	switch v := msg.cmd.(type) {
+	case ClientCommand:
+		if err := resp.
+			NewWriter(msg.peer.conn).
+			WriteString("OK"); err != nil {
+			return err
+		}
 	case SetCommand:
-		return s.kv.Set(v.key, v.val)
+		if err := s.kv.Set(v.key, v.val); err != nil {
+			return err
+		}
+		if err := resp.
+			NewWriter(msg.peer.conn).
+			WriteString("OK"); err != nil {
+			return err
+		}
 	case GetCommand:
 		val, ok := s.kv.Get(v.key)
 		if !ok {
 			return fmt.Errorf("key not found")
 		}
-		_, err := msg.peer.Send(val)
+		if err := resp.
+			NewWriter(msg.peer.conn).
+			WriteString(string(val)); err != nil {
+			return err
+		}
+	case HelloCommand:
+		spec := map[string]string{
+			"server": "redis",
+		}
+		_, err := msg.peer.Send(respWriteMap(spec))
 		if err != nil {
-			slog.Error("peer send error", "err", err)
+			return fmt.Errorf("peer send error: %s", err)
 		}
 	}
 	return nil
@@ -81,13 +107,16 @@ func (s *Server) loop() {
 		select {
 		case msg := <-s.msgCh:
 			if err := s.handleMessage(msg); err != nil {
-				slog.Info("raw message error", "err", err)
+				slog.Error("raw message eror", "err", err)
 			}
 		case <-s.quitCh:
 			return
 		case peer := <-s.addPeerCh:
-			slog.Info("new peer connected", "remoteaddr", peer.conn.RemoteAddr())
+			slog.Info("peer connected", "remoteAddr", peer.conn.RemoteAddr())
 			s.peers[peer] = true
+		case peer := <-s.delPeerCh:
+			slog.Info("peer disconnected", "remoteAddr", peer.conn.RemoteAddr())
+			delete(s.peers, peer)
 		}
 	}
 }
@@ -104,7 +133,7 @@ func (s *Server) acceptLoop() error {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	peer := NewPeer(conn, s.msgCh)
+	peer := NewPeer(conn, s.msgCh, s.delPeerCh)
 	s.addPeerCh <- peer
 	if err := peer.readLoop(); err != nil {
 		slog.Error("peer read error", "err", err, "remoteAddr", conn.RemoteAddr())
@@ -112,8 +141,7 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func main() {
-
-	listenAddr := flag.String("listenaddr", defaultListenAddr, "listen address of the redis server")
+	listenAddr := flag.String("listenAddr", defaultListenAddr, "listen address of the goredis server")
 	flag.Parse()
 	server := NewServer(Config{
 		ListenAddr: *listenAddr,
