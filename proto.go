@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/tidwall/resp"
 )
@@ -16,12 +17,12 @@ const (
 )
 
 // Serves as a marker for different command types.
-type Command interface {
-}
+type Command interface{}
 
-// Set command with key-value pair.
+// Set command with key-value pair and optional TTL.
 type SetCommand struct {
 	key, val []byte
+	ttl      time.Duration // Time-to-live for the key-value pair.
 }
 
 // Get command to retrieve value by key.
@@ -39,14 +40,14 @@ type HelloCommand struct {
 	value string
 }
 
-// Converts go map to RESP compliant map response.
+// Converts Go map to RESP compliant map response.
 func respWriteMap(m map[string]string) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString(fmt.Sprintf("%%%d\r\n", len(m))) // RESP map header
 	rw := resp.NewWriter(buf)
 	for k, v := range m {
-		rw.WriteString(k + "\r\n") // Write key
-		rw.WriteString(v + "\r\n") // Write value
+		rw.WriteString(k) // Write key
+		rw.WriteString(v) // Write value
 	}
 	return buf.Bytes()
 }
