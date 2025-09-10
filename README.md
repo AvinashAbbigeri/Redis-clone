@@ -17,7 +17,9 @@ A lightweight Redis-like key-value store server implemented in Go. It supports b
 ### Installation
 1. Clone the repository:
    ```sh
-   git clone <your-repo-url>
+   git clone https://github.com/AvinashAbbigeri/Redis-clone.git
+   ```
+   ```sh
    cd Redis-clone
    ```
 2. Install dependencies:
